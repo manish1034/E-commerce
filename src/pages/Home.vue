@@ -1,22 +1,27 @@
 <script>
 import axios from "axios";
+import useAuth from "../composables/useAuth";
 import { ref, reactive, onMounted, computed } from "vue";
 import Card from "../components/Card.vue";
+import ViewItem from "../components/ViewItem.vue"; // Import the new component
 import { library } from "@fortawesome/fontawesome-svg-core";
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { faBagShopping } from "@fortawesome/free-solid-svg-icons";
+import { useRouter } from "vue-router";
 library.add(faBagShopping);
 
 export default {
   name: "home",
   components: {
     Card,
+    ViewItem, // Register the component
     "font-awesome-icon": FontAwesomeIcon,
   },
   setup() {
+    const router = useRouter();
+    const { isAuthenticated, cart, addToCart } = useAuth();
     const products = ref([]);
-    const searchQuery = ref([]);
-    const cart = reactive([]);
+    const searchQuery = ref("");
     const selectedProduct = ref(null);
     const currentImage = ref("");
     const currentPage = ref(1);
@@ -47,25 +52,12 @@ export default {
       );
     });
 
-    const addToCart = (product) => {
-      const existingProduct = cart.find((item) => item.id === product.id);
-      if (existingProduct) {
-        existingProduct.quantity++;
-      } else {
-        cart.push({ ...product, quantity: 1 });
+    const addToCartHandler = (product) => {
+      if (!isAuthenticated()) {
+        router.push("/login");
+        return;
       }
-      saveCartToLocalStorage();
-    };
-
-    const saveCartToLocalStorage = () => {
-      localStorage.setItem("cart", JSON.stringify(cart));
-    };
-
-    const loadCartFromLocalStorage = () => {
-      const storedCart = JSON.parse(localStorage.getItem("cart"));
-      if (storedCart) {
-        cart.push(...storedCart);
-      }
+      addToCart(product);
     };
 
     const showProductDetails = (product) => {
@@ -102,7 +94,6 @@ export default {
 
     onMounted(() => {
       fetchProducts();
-      loadCartFromLocalStorage();
     });
 
     return {
@@ -111,7 +102,7 @@ export default {
       searchQuery,
       cart,
       selectedProduct,
-      addToCart,
+      addToCartHandler,
       showProductDetails,
       closeProductDetails,
       currentImage,
@@ -127,25 +118,27 @@ export default {
 </script>
 
 <template>
-  <div class="w-full h-full flex flex-row gap-10 items-start">
+  <div
+    class="w-full h-full xs:h-[100vh] flex flex-row lg:gap-10 md:gap-10 sm:gap-10 ss:gap-10 xs:gap-2 items-start"
+  >
     <div
-      class="flex flex-col gap-5 w-[70%] h-[92vh] border-r-[1px] border-[#bab8b8] mt-8"
+      class="flex flex-col gap-5 lg:w-[70%] md:w-[70%] ss:w-[60%] xs:w-[58%] h-[92vh] border-r-[1px] border-[#bab8b8] mt-8"
     >
       <div class="flex flex-col items-center gap-2">
         <h1 class="text-[#6b6b6b] text-center">Search Items</h1>
         <input
           v-model="searchQuery"
           placeholder="Apple Watch, MAC, Samsung S23..."
-          class="w-[18rem] h-[2.2rem] rounded-lg placeholder:px-2 shadow-lg focus:outline-none px-2 focus:text-gray-600"
+          class="lg:w-[18rem] sm:w-[15rem] lg:h-[2.2rem] sm:h-[2rem] rounded-lg placeholder:px-2 shadow-lg focus:outline-none px-2 focus:text-gray-600 focus:text-[24px] xs:text-[12px]"
         />
       </div>
       <div
-        class="flex flex-row h-full justify-between gap-2 flex-wrap px-14 overflow-y-auto"
+        class="flex flex-row gap-2 justify-around lg:gap-2 md:gap-[1.5rem] sm:gap-[1.3rem] flex-wrap lg:px-14 md:px-14 ss:px-12 xs:px-6 overflow-y-auto"
       >
         <div v-for="product in filteredProducts" :key="product.id" class="">
           <Card
             :product="product"
-            @add-to-cart="addToCart"
+            @add-to-cart="addToCartHandler"
             @show-product="showProductDetails"
           />
         </div>
@@ -156,18 +149,19 @@ export default {
         <button
           @click="previousPage"
           :disabled="currentPage === 1"
-          class="px-4 py-2 mx-2 bg-gray-300 rounded hover:bg-black hover:text-white"
+          class="lg:px-4 lg:py-2 mx-2 bg-gray-300 lg:text-[16px] md:text-[12px] ss:text-[11px] xs:text-[11px] lg:h-10 md:h-8 sm:h-7 ss:h-6 xs:h-6 lg:w-[5rem] md:w-[5rem] sm:w-[4rem] ss:w-[3rem] xs:w-[3rem] rounded hover:bg-black hover:text-white"
         >
-          Previous
+          Prev
         </button>
         <button
           v-for="page in totalPages"
           :key="page"
           @click="goToPage(page)"
           :class="[
-            'px-4 py-2 mx-1 rounded hover:bg-black hover:text-white',
+            'lg:px-4 lg:py-2 lg:mx-1 md:mx-1 sm:mx-1 ss:mx-3 xs:mx-[0.4rem] rounded lg:text-[16px] md:text-[12px] ss:text-[11px] xs:text-[11px] lg:h-10 md:h-8 sm:h-7 xs:h-6 lg:w-[3rem] md:w-[2rem] sm:w-[1.5rem] ss:w-[0rem] xs:w-[0rem] hover:bg-black hover:text-white',
             {
-              'bg-black text-white': currentPage === page,
+              'bg-black lg:text-white md:text-white sm:text-red-600 xs:text-red-600 ss:text-red-600':
+                currentPage === page,
               'bg-gray-300': currentPage !== page,
             },
           ]"
@@ -177,81 +171,54 @@ export default {
         <button
           @click="nextPage"
           :disabled="currentPage === totalPages"
-          class="px-4 py-2 mx-2 bg-gray-300 rounded hover:bg-black hover:text-white"
+          class="lg:px-4 lg:py-2 mx-2 bg-gray-300 lg:text-[16px] md:text-[12px] ss:text-[11px] xs:text-[11px] lg:h-10 md:h-8 sm:h-7 xs:h-6 lg:w-[5rem] md:w-[5rem] sm:w-[4rem] ss:w-[4rem] xs:w-[3rem] rounded hover:bg-black hover:text-white"
         >
           Next
         </button>
       </div>
     </div>
 
-    <div class="h-full w-[25vw] flex flex-col justify-start items-center">
-      <h1 class="text-[28px] mt-14 -ml-8 mb-5">Bag</h1>
-      <div v-if="cart.length > 0" class="w-full max-h-[60vh] overflow-y-auto">
+    <div
+      class="h-full lg:w-[25vw] md:w-[20vw] sm:w-[20vw] ss:w-[18vw] xs:w-[32vw] flex flex-col justify-start items-center"
+    >
+      <h1 class="text-[28px] mt-14 lg:-ml-8 md:ml-8 mb-5">Bag</h1>
+      <div
+        v-if="cart.length > 0"
+        class="lg:w-[25vw] md:w-[24vw] sm:w-[25vw] ss:w-[25vw] xs:w-[32vw] max-h-[60vh] overflow-y-auto"
+      >
         <div v-for="item in cart" :key="item.id" class="flex items-center gap-4 mb-4">
           <img :src="item.thumbnail" alt="Product Image" class="w-16 h-16 object-cover" />
           <div>
-            <div>{{ item.title }}</div>
-            <div>Quantity: {{ item.quantity }}</div>
+            <div class="lg:text-[16px] md:text-[14px] sm:text-[12px] xs:text-[10px]">
+              {{ item.title }}
+            </div>
+            <div class="lg:text-[16px] md:text-[14px] sm:text-[12px] xs:text-[10px]">
+              Quantity: {{ item.quantity }}
+            </div>
           </div>
         </div>
       </div>
       <div v-else class="text-[19px] text-[#8d8b8b]">Add Something...</div>
       <router-link to="/cart">
-        <button class="w-[9rem] bg-black text-white h-10 rounded-lg mt-8">
+        <button
+          class="lg:w-[9rem] md:w-[7rem] sm:w-[6rem] xs:w-[5.5rem] lg:h-10 md:h-8 sm:h-8 ss:h-6 xs:h-6 bg-black text-white lg:text-[16px] md:text-[14px] sm:text-[12px] ss:text-[10px] xs:text-[10px] rounded-lg mt-8"
+        >
           <font-awesome-icon
             :icon="['fas', 'bag-shopping']"
-            class="rounded-lg text-[14px] text-white mr-2 cursor-pointer"
+            class="rounded-lg text-white mr-2 cursor-pointer"
           />View Bag
         </button>
       </router-link>
     </div>
 
     <!-- ViewItems Modal -->
-    <div
+    <ViewItem
       v-if="selectedProduct"
-      class="fixed inset-0 bg-gray-800 bg-opacity-50 flex items-center justify-center"
-    >
-      <div class="bg-white p-6 rounded-lg shadow-lg w-[50rem] relative flex gap-10">
-        <button
-          @click="closeProductDetails"
-          class="absolute top-0 right-4 text-[28px] text-gray-600 hover:text-gray-800"
-        >
-          &times;
-        </button>
-        <div class="flex flex-col justify-center items-center mr-6">
-          <img
-            :src="currentImage"
-            alt="Product Image"
-            class="w-full h-64 object-contain rounded-lg mb-9"
-          />
-          <div class="flex gap-2">
-            <img
-              v-for="image in selectedProduct.images"
-              :key="image"
-              :src="image"
-              @click="updateMainImage(image)"
-              alt="Product Image"
-              class="w-16 h-16 object-cover rounded-lg cursor-pointer"
-            />
-          </div>
-        </div>
-        <div class="flex flex-col justify-start">
-          <h1 class="text-2xl font-semibold mb-2">{{ selectedProduct.title }}</h1>
-          <p class="text-gray-600 mb-2">{{ selectedProduct.brand }}</p>
-          <p class="text-lg mb-2">${{ selectedProduct.price }}</p>
-          <p class="text-gray-700">{{ selectedProduct.description }}</p>
-          <button
-            @click="addToCart(selectedProduct)"
-            class="w-[9rem] bg-black text-white h-10 rounded-lg mt-8"
-          >
-            <font-awesome-icon
-              :icon="['fas', 'bag-shopping']"
-              class="rounded-lg text-[14px] text-white mr-2 cursor-pointer"
-            />
-            Add to Cart
-          </button>
-        </div>
-      </div>
-    </div>
+      :selectedProduct="selectedProduct"
+      :currentImage="currentImage"
+      @close-product-details="closeProductDetails"
+      @update-main-image="updateMainImage"
+      @add-to-cart="addToCartHandler"
+    />
   </div>
 </template>

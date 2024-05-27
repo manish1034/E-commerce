@@ -20,3 +20,7 @@
 ::-webkit-scrollbar-thumb:hover {
     background: #807f7f;
 }
+
+.font-myweight {
+    font-weight: 350;
+}
